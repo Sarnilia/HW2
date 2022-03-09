@@ -1,0 +1,25 @@
+<div class="d-flex justify-content-center mt-3">
+    <form class="d-flex flex-column align-items-center" action="/newpost" method="POST">
+        <div class="mb-3">
+            <input name="URL" placeholder="Photo URL" type="text" class="form-control">
+        </div>
+        <div class="mb-3">
+            <input name="desc" placeholder="Description" type="text" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-primary">Post</button>
+    </form>
+</div>
+
+<hr />
+
+<section class="d-flex flex-column align-items-center">
+    {{#each listOfPosts}}
+    <div class="card mb-3" style="width: 18rem;">
+        <img src="{{this.URL}}" class=" card-img-top">
+        <div class="card-body d-flex justify-content-between m-0.5">
+            <p class="card-text">{{this.desc}}</p>
+            <button class="btn btn-primary">Delete</button>
+        </div>
+    </div>
+    {{/each}}
+</section>

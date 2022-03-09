@@ -1,0 +1,21 @@
+<nav class="d-flex flex-row justify-content-center">
+    <div class="m-3">
+        <a href="/">Main</a>
+    </div>
+    <div class="m-3">
+        <a href="/posts">Photoline</a>
+    </div>
+
+    {{#if name}}
+    <div class="m-3">
+        <a href="/auth/signout">Sign Out</a>
+    </div>
+    {{else}}
+    <div class="m-3">
+        <a href="/auth/signup">Sign Up</a>
+    </div>
+    <div class="m-3">
+        <a href="/auth/signin">Sign In</a>
+    </div>
+    {{/if}}
+</nav>
