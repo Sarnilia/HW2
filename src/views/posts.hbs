@@ -12,13 +12,13 @@
 
 <hr />
 
-<section class="d-flex flex-column align-items-center">
+<section data-delete class="d-flex flex-column align-items-center">
     {{#each listOfPosts}}
-    <div class="card mb-3" style="width: 18rem;">
+    <div data-id="{{this.id}}" class="card mb-3" style="width: 18rem;">
         <img src="{{this.URL}}" class=" card-img-top">
         <div class="card-body d-flex justify-content-between m-0.5">
             <p class="card-text">{{this.desc}}</p>
-            <button class="btn btn-primary">Delete</button>
+            <button data-action="{{this.postId}}" class="btn btn-primary">Delete</button>
         </div>
     </div>
     {{/each}}

@@ -7,6 +7,7 @@ const { db } = require('./DB')
 const { join } = require('path')
 const { sessions } = require('./sessions')
 const { checkAuth } = require('./src/middlewares/checkAuth')
+const { v4: uuidv4 } = require('uuid')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -18,6 +19,7 @@ hbs.registerPartials(path.join(process.env.PWD, 'src', 'views', 'partials'))
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 app.use(cookieParser())
+app.use(express.static(path.join(process.env.PWD, 'public')))
 
 app.use((req, res, next) => {
   const sidFromUser = req.cookies.sid
@@ -56,7 +58,6 @@ app.post('/auth/signup', (req, res) => {
 
   res.cookie('sid', sid, {
     httpOnly: true,
-    // maxAge: 6e4,
   })
 
   res.redirect('/posts')
@@ -81,7 +82,6 @@ app.post('/auth/signin', (req, res) => {
 
       res.cookie('sid', sid, {
         httpOnly: true,
-        // maxAge: 6e4,
       })
 
       return res.redirect('/posts')
@@ -114,9 +114,29 @@ app.get('/posts', checkAuth, (req, res) => {
 })
 
 app.post('/newpost', (req, res) => {
+  const sidFromUserCookie = req.cookies.sid
   const dataFromUser = req.body
-  db.posts.unshift(dataFromUser)
+  const userId = { id: [sidFromUserCookie] }
+  const rndmId = uuidv4()
+  const postId = { postId: [rndmId] }
+  const dataFromUserWithId = Object.assign(dataFromUser, userId, postId)
+  db.posts.unshift(dataFromUserWithId)
   res.redirect('/posts')
+
+})
+
+app.delete('/post', (req, res) => {
+  const sidFromUserCookie = req.cookies.sid
+  const { action } = req.body
+  const currentPostIndex = db.posts.findIndex((post) => post.postId == action)
+  const currentPost = db.posts[currentPostIndex]
+  const currentPostId = currentPost.id
+  if (currentPostId == sidFromUserCookie) {
+    db.posts.splice(currentPostIndex, 1)
+    return res.sendStatus(200)
+  } else {
+    res.sendStatus(403)
+  }
 })
 
 app.listen(PORT, () => {
