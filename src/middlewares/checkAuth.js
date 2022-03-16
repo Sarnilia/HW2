@@ -1,9 +1,7 @@
-const { sessions } = require('../../sessions')
-
 const checkAuth = (req, res, next) => {
-    const sidFromUser = req.cookies.sid
+    const currentUser = req.session?.user
 
-    if (sessions[sidFromUser]) {
+    if (currentUser) {
         return next()
     }
 

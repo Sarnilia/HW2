@@ -1,32 +1,45 @@
 const express = require('express')
 const path = require('path')
 const hbs = require('hbs')
-const cookieParser = require('cookie-parser')
+const sessions = require('express-session')
 const res = require('express/lib/response')
 const { db } = require('./DB')
-const { join } = require('path')
-const { sessions } = require('./sessions')
 const { checkAuth } = require('./src/middlewares/checkAuth')
-const { v4: uuidv4 } = require('uuid')
+const bcrypt = require('bcrypt')
+const async = require('hbs/lib/async')
 
 const app = express()
 const PORT = process.env.PORT || 3000
 
+const saltRounds = 10
 
 app.set('view engine', 'hbs')
 app.set('views', path.join(process.env.PWD, 'src', 'views'))
+app.set('cookieName', 'sid')
+
 hbs.registerPartials(path.join(process.env.PWD, 'src', 'views', 'partials'))
+
+const secretKey = 'asdksaakflgdfkvdlfkmdfb'
+
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
-app.use(cookieParser())
+app.use(sessions({
+  name: app.get('cookieName'),
+  secret: secretKey,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    maxAge: 86400 * 1e3,
+  }
+}))
 app.use(express.static(path.join(process.env.PWD, 'public')))
 
 app.use((req, res, next) => {
-  const sidFromUser = req.cookies.sid
-  const currentEmail = sessions[sidFromUser]
+  const currentEmail = req.session?.user?.email
 
   if (currentEmail) {
-    const currentUserName = db.users.find((user) => user.email === currentEmail.email)
+    const currentUserName = db.users.find((user) => user.email === currentEmail)
     res.locals.name = currentUserName.name
   }
 
@@ -37,52 +50,42 @@ app.get('/', (req, res) => {
   res.render('main')
 })
 
-app.get('/auth/signup', (req, res) => {
+app.get('/auth/signup', async (req, res) => {
   res.render('signUp')
 })
 
-app.post('/auth/signup', (req, res) => {
+app.post('/auth/signup', async (req, res) => {
   const { name, email, password } = req.body
+
+  const hashPass = await bcrypt.hash(password, saltRounds)
 
   db.users.push({
     name,
     email,
-    password,
+    password: hashPass,
   })
 
-  const sid = Date.now()
-
-  sessions[sid] = {
-    email,
+  req.session.user = {
+    email
   }
-
-  res.cookie('sid', sid, {
-    httpOnly: true,
-  })
 
   res.redirect('/posts')
 })
 
-app.get('/auth/signin', (req, res) => {
+app.get('/auth/signin', async (req, res) => {
   res.render('signIn')
 })
 
-app.post('/auth/signin', (req, res) => {
+app.post('/auth/signin', async (req, res) => {
   const { email, password } = req.body
 
   const currentUser = db.users.find((user) => user.email === email)
 
   if (currentUser) {
-    if (currentUser.password === password) {
-
-      const sid = Date.now()
-      sessions[sid] = {
-        email,
+    if (await bcrypt.compare(password, currentUser.password)) {
+      req.session.user = {
+        email
       }
-
-      res.cookie('sid', sid, {
-        httpOnly: true,
-      })
 
       return res.redirect('/posts')
     }
@@ -91,12 +94,12 @@ app.post('/auth/signin', (req, res) => {
 })
 
 app.get('/auth/signout', (req, res) => {
-  const sidFromUserCookie = req.cookies.sid
+  req.session.destroy((err) => {
+    if (err) return res.redirect('/')
 
-  delete sessions[sidFromUserCookie]
-
-  res.clearCookie('sid')
-  res.redirect('/')
+    res.clearCookie(req.app.get('cookieName'))
+    return res.redirect('/')
+  })
 })
 
 app.get('/posts', checkAuth, (req, res) => {
@@ -114,24 +117,22 @@ app.get('/posts', checkAuth, (req, res) => {
 })
 
 app.post('/newpost', (req, res) => {
-  const sidFromUserCookie = req.cookies.sid
   const dataFromUser = req.body
-  const userId = { id: [sidFromUserCookie] }
-  const rndmId = uuidv4()
-  const postId = { postId: [rndmId] }
-  const dataFromUserWithId = Object.assign(dataFromUser, userId, postId)
+  const currentEmail = req.session?.user?.email
+  const userId = { id: currentEmail }
+  const dataFromUserWithId = Object.assign(dataFromUser, userId)
   db.posts.unshift(dataFromUserWithId)
   res.redirect('/posts')
 
 })
 
 app.delete('/post', (req, res) => {
-  const sidFromUserCookie = req.cookies.sid
+  const currentEmail = req.session?.user?.email
   const { action } = req.body
-  const currentPostIndex = db.posts.findIndex((post) => post.postId == action)
+  const currentPostIndex = db.posts.findIndex((post) => post.id === action)
   const currentPost = db.posts[currentPostIndex]
   const currentPostId = currentPost.id
-  if (currentPostId == sidFromUserCookie) {
+  if (currentPostId == currentEmail) {
     db.posts.splice(currentPostIndex, 1)
     return res.sendStatus(200)
   } else {

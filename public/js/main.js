@@ -6,7 +6,6 @@ function remove(el) {
 }
 
 $deletePost.addEventListener('click', async (e) => {
-
     if (e.target.dataset.action) {
         const parent = e.target.closest('[data-id]')
         const parentId = e.target.closest('[data-id]').dataset.id
